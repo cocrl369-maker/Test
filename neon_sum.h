@@ -7,8 +7,8 @@
 
 namespace neon {
 
-// Summe von n uint16-Werten. Das Ergebnis ist 64 Bit breit und kann
+// Summe von count uint16-Werten. Das Ergebnis ist 64 Bit breit und kann
 // daher für jede praktisch mögliche Arraygröße nicht überlaufen.
-std::uint64_t sum(const std::uint16_t* data, std::size_t n) noexcept;
+std::uint64_t sum(const std::uint16_t* values, std::size_t count) noexcept;
 
 } // namespace neon

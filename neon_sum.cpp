@@ -25,8 +25,8 @@
 
 namespace neon {
 
-std::uint64_t sum(const std::uint16_t* data, std::size_t n) noexcept {
-    std::size_t i = 0;
+std::uint64_t sum(const std::uint16_t* values, std::size_t count) noexcept {
+    std::size_t index = 0;
     std::uint64_t result = 0;
 
 #if NEON_SUM_HAVE_NEON
@@ -41,39 +41,39 @@ std::uint64_t sum(const std::uint16_t* data, std::size_t n) noexcept {
 
     uint64x2_t total = vdupq_n_u64(0);
 
-    while (i + kBlock <= n) {
-        uint32x4_t acc0 = vdupq_n_u32(0);
-        uint32x4_t acc1 = vdupq_n_u32(0);
-        uint32x4_t acc2 = vdupq_n_u32(0);
-        uint32x4_t acc3 = vdupq_n_u32(0);
+    while (index + kBlock <= count) {
+        uint32x4_t accumulator0 = vdupq_n_u32(0);
+        uint32x4_t accumulator1 = vdupq_n_u32(0);
+        uint32x4_t accumulator2 = vdupq_n_u32(0);
+        uint32x4_t accumulator3 = vdupq_n_u32(0);
 
-        std::size_t blocks = (n - i) / kBlock;
-        if (blocks > kInnerBlocks) blocks = kInnerBlocks;
+        std::size_t block_count = (count - index) / kBlock;
+        if (block_count > kInnerBlocks) block_count = kInnerBlocks;
 
-        const std::uint16_t* p = data + i;
-        for (std::size_t b = 0; b < blocks; ++b, p += kBlock) {
-            __builtin_prefetch(reinterpret_cast<const char*>(p) + kPrefetchBytes, 0, 0);
-            const uint16x8x4_t v = vld1q_u16_x4(p);
-            acc0 = vpadalq_u16(acc0, v.val[0]);
-            acc1 = vpadalq_u16(acc1, v.val[1]);
-            acc2 = vpadalq_u16(acc2, v.val[2]);
-            acc3 = vpadalq_u16(acc3, v.val[3]);
+        const std::uint16_t* block_start = values + index;
+        for (std::size_t block = 0; block < block_count; ++block, block_start += kBlock) {
+            __builtin_prefetch(reinterpret_cast<const char*>(block_start) + kPrefetchBytes, 0, 0);
+            const uint16x8x4_t loaded = vld1q_u16_x4(block_start);
+            accumulator0 = vpadalq_u16(accumulator0, loaded.val[0]);
+            accumulator1 = vpadalq_u16(accumulator1, loaded.val[1]);
+            accumulator2 = vpadalq_u16(accumulator2, loaded.val[2]);
+            accumulator3 = vpadalq_u16(accumulator3, loaded.val[3]);
         }
-        i += blocks * kBlock;
+        index += block_count * kBlock;
 
         // u32 -> u64 (jeweils paarweise, damit auch hier nichts überläuft)
-        total = vpadalq_u32(total, acc0);
-        total = vpadalq_u32(total, acc1);
-        total = vpadalq_u32(total, acc2);
-        total = vpadalq_u32(total, acc3);
+        total = vpadalq_u32(total, accumulator0);
+        total = vpadalq_u32(total, accumulator1);
+        total = vpadalq_u32(total, accumulator2);
+        total = vpadalq_u32(total, accumulator3);
     }
 
     // Rest in 8er-Schritten (max. 3 Vektoren -> kein Überlauf möglich)
-    if (i + 8 <= n) {
-        uint32x4_t acc = vdupq_n_u32(0);
-        for (; i + 8 <= n; i += 8)
-            acc = vpadalq_u16(acc, vld1q_u16(data + i));
-        total = vpadalq_u32(total, acc);
+    if (index + 8 <= count) {
+        uint32x4_t remainder_accumulator = vdupq_n_u32(0);
+        for (; index + 8 <= count; index += 8)
+            remainder_accumulator = vpadalq_u16(remainder_accumulator, vld1q_u16(values + index));
+        total = vpadalq_u32(total, remainder_accumulator);
     }
 
 #  if defined(__aarch64__)
@@ -83,7 +83,7 @@ std::uint64_t sum(const std::uint16_t* data, std::size_t n) noexcept {
 #  endif
 #endif
 
-    for (; i < n; ++i) result += data[i];
+    for (; index < count; ++index) result += values[index];
     return result;
 }
 
