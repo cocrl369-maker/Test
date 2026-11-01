@@ -8,10 +8,10 @@
 
 static int failures = 0;
 
-static std::uint64_t reference(const std::uint16_t* d, std::size_t n) {
-    std::uint64_t s = 0;
-    for (std::size_t k = 0; k < n; ++k) s += d[k];
-    return s;
+static std::uint64_t reference(const std::uint16_t* values, std::size_t count) {
+    std::uint64_t total = 0;
+    for (std::size_t index = 0; index < count; ++index) total += values[index];
+    return total;
 }
 
 static void check(const std::uint16_t* d, std::size_t n, const char* what) {
